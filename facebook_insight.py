@@ -71,10 +71,19 @@ def get_campaign_statistics_for_day(date, account_id):
     'limit': 100000
     }
 
+    # ad_insights 에는 매게변수값들 모음 for문으로 광고 하나씩 가져와서 []로 값 확인 가능
+    # https://stackoverflow.com/questions/68839056/how-can-i-access-data-from-a-cursor-object-with-python-facebook-business-api
     ad_insights = ad_account.get_insights(fields, params)
-
-    # do whatever you want with the statistics in JSON format
-    print(ad_insights) 
+    best_ads = {}
+    for insight in ad_insights:
+        try:
+            cpc = float(insight['cpc'])
+            if cpc < 300:
+                best_ads[insight['cpc']] = insight
+        except:
+            pass
+            
+    print(best_ads)  
 
     return ad_insights
 
