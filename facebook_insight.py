@@ -7,6 +7,7 @@ from facebook_business.adobjects.adaccount import AdAccount
 FACEBOOK_CLIENT_ID = '<your client id>'
 FACEBOOK_CLIENT_SECRET = '<your client secret>'
 FACEBOOK_ACCESS_TOKEN = '<your access token>'
+FACEBOOK_ACCOUNT_ID = '<your account id>'
 
  
 def get_campaign_statistics_for_day(date, account_id):
@@ -78,12 +79,11 @@ def get_campaign_statistics_for_day(date, account_id):
     return ad_insights
 
  
-
 if __name__ == '__main__':
 
     FacebookAdsApi.init(FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, FACEBOOK_ACCESS_TOKEN)
 
-    facebook_account_id = 'act_<your account id>'
+    facebook_account_id = f'act_{FACEBOOK_ACCOUNT_ID}'
 
     my_date = (datetime.now() - timedelta(1))
 
