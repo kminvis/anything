@@ -10,90 +10,124 @@ FACEBOOK_ACCESS_TOKEN = '<your access token>'
 FACEBOOK_ACCOUNT_ID = '<your account id>'
 
  
-def get_campaign_statistics_for_day(date, account_id):
-    date_string = date.strftime("%Y-%m-%d")
+            ######################################## 분석할 기간 ########################################
+date_since = "2023-01-01"
+date_until = "2023-01-19"
 
+ 
+def get_campaign_statistics_for_day(account_id):
     ad_account = AdAccount(account_id)
 
-    ###################### fields = 열(기본값:성과) https://developers.facebook.com/docs/marketing-api/insights/parameters/v15.0 ######################
-    # account_name (광고 계정 이름)
-    # campaign_name (캠페인명)
-    # campaign_id
-    # adset_name (광고세트명)
-    # adset_id
-    # ad_name (소구명)
-    # ad_id
-    # clicks (클릭)
-    # reach (도달: 노출과 달리 중복 포함x)
-    # impressions (노출)
-    # spend (지출금액 추정)
-    # actions (ex 참여 클릭 전환 등) https://developers.facebook.com/docs/marketing-api/reference/ads-action-stats/
-    ## cpc (클릭당 평균 비용(전체))
-    ## cpm (1,000회 노출에 대한 평균 비용)
-    ## cpp (1,000명에게 도달하는 평균 비용 추정)
-    ## ctr (클릭률 > 노출 대비 클릭)
     fields = [
+    'ad_id',
     'campaign_name',
     'adset_name',
     'ad_name',
     'clicks',
     'reach',
     'impressions',
-    'spend',
+    'cpc',
+    'spend'
     ]
 
-    ###################### params = 매게변수 https://developers.facebook.com/docs/marketing-api/insights/parameters/v15.0 ######################
-
     params = {
-    ###################### breakdowns = 분석데이터 https://developers.facebook.com/docs/marketing-api/insights/breakdowns ######################
-    # 자주 사용 되는 데이터
-    # gender (성별)
-    # Publisher_platform (노출 플랫폼) 
-    # platform_position (노출 위치) 
-    # device_platform (플랫폼 및 기기)
-    # ad_format_asset, age, app_id, body_asset, call_to_action_asset, country, description_asset, gender, image_asset, mmm, place_page_id, 
-    # impression_device, is_conversion_id_modeled, link_url_asset, product_id, region, skan_campaign_id, skan_conversion_id, 
-    # title_asset, video_asset, dma, frequency_value, hourly_stats_aggregated_by_advertiser_time_zone, hourly_stats_aggregated_by_audience_time_zone,
-    'breakdowns':['device_platform'],
+    'breakdowns':[
+        'publisher_platform', 
+        'platform_position', 
+        'impression_device'
+        ],
 
-    ###################### time_range = 시간 범위 #########################
     'time_range': {
-        'since': date_string,
-        'until': date_string
-        # 'since': "2022-01-18",
-        # 'until': "2022-01-18"
+        'since': date_since,
+        'until': date_until
     },
 
-    # 'lever': 'ad', 'adset', 'campaign', 'account'
     'level': 'ad',
 
-    # 각 광고에 대해 반환되는 최대 제품 ID 수
     'limit': 100000
     }
 
-    # ad_insights 에는 매게변수값들 모음 for문으로 광고 하나씩 가져와서 []로 값 확인 가능
-    # https://stackoverflow.com/questions/68839056/how-can-i-access-data-from-a-cursor-object-with-python-facebook-business-api
-    ad_insights = ad_account.get_insights(fields, params)
-    best_ads = {}
-    for insight in ad_insights:
+    first_ad_insights = ad_account.get_insights(fields, params)
+    first_ad_list = []
+    for first_insight in first_ad_insights:
         try:
-            cpc = float(insight['cpc'])
-            if cpc < 300:
-                best_ads[insight['cpc']] = insight
+            cpc = float(first_insight['cpc'])
+            click = int(first_insight['clicks'])
+            ######################################## 원하는 수식 설정 ########################################
+            if cpc < 300 and click > 5:
+                insight_data = {
+                    '광고ID': first_insight['ad_id'],
+                    '캠페인': first_insight['campaign_name'],
+                    '광고세트': first_insight['adset_name'],
+                    '클릭': first_insight['clicks'],
+                    '도달': first_insight['reach'],
+                    '노출': first_insight['impressions'],
+                    'cpc': first_insight['cpc'],
+                    '지출금액': first_insight['spend'],
+                    '소구제목': first_insight['title_asset'],
+                    '플랫폼': first_insight['publisher_platform'], 
+                    '노출위치': first_insight['platform_position'], 
+                    '노출기기': first_insight['impression_device'],
+                }
+                first_ad_list.append(insight_data)
         except:
             pass
-            
-    print(best_ads)  
 
-    return ad_insights
+    # 위 광고 성별 확인하기
+    for first_ad in first_ad_list:
+        first_ad['성별'] = gender(facebook_account_id, first_ad['광고ID'])
 
- 
+    best_ads = pd.DataFrame((first_ad_list))
+    print(best_ads)
+    
+            ######################################## 엑셀로 저장하기 ########################################
+    best_ads.to_excel(f'{date_since}-{date_until}.xlsx')
+
+
+
+
+def gender(account_id, best_ad_id):
+    ad_account = AdAccount(account_id)
+    fields = [
+    'ad_id',
+    'clicks'
+    ]
+
+    params = {
+    'breakdowns':['gender'],
+
+    'time_range': {
+        'since': date_since,
+        'until': date_until
+    },
+
+    'level': 'ad',
+
+    'limit': 100000
+    }
+
+    second_ad_insights = ad_account.get_insights(fields, params)
+    
+    male_ad_click = 0
+    female_ad_click = 0
+    for second_insight in second_ad_insights:
+        if second_insight['ad_id'] == best_ad_id:
+            if second_insight['gender'] == "male":
+                male_ad_click = int(second_insight['clicks'])
+            if second_insight['gender'] == "female":
+                female_ad_click = int(second_insight['clicks'])
+    if male_ad_click > female_ad_click:
+        ad_gender = "male"
+    else:
+        ad_gender = "female"
+
+    return ad_gender
+    
+
 if __name__ == '__main__':
 
     FacebookAdsApi.init(FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, FACEBOOK_ACCESS_TOKEN)
 
     facebook_account_id = f'act_{FACEBOOK_ACCOUNT_ID}'
 
-    my_date = (datetime.now() - timedelta(1))
-
-    get_campaign_statistics_for_day(my_date, facebook_account_id)
+    get_campaign_statistics_for_day(facebook_account_id)
